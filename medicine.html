@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medicine Search & Booking</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            padding: 0;
+            margin: 0;
+            min-height: 100vh;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        form {
+            padding: 20px;
+            background-color: #fff;
+            width: 100%;
+            height: 100vh;
+            border-radius: 0;
+            border: none;
+            box-shadow: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        input[type="text"], select {
+            width: calc(100% - 16px);
+            padding: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .store-list, #slip, #bookingTable {
+            padding: 20px;
+            background-color: #fff;
+            width: 100%;
+            height: calc(100vh - 60px);
+            overflow-y: auto;
+            border-radius: 0;
+            border: none;
+            box-shadow: none;
+            box-sizing: border-box;
+        }
+
+        .store-item {
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        input[type="range"] {
+            width: 100%;
+        }
+
+        /* Styling the "Download Slip as PDF" button */
+        #downloadSlip {
+            background-color: #007bff; /* Blue background */
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #downloadSlip:hover {
+            background-color: #0056b3; /* Darker blue on hover */
+        }
+
+        /* Media Queries for Responsive Design */
+        @media (max-width: 768px) {
+            form {
+                padding: 15px;
+            }
+
+            .store-list, #slip, #bookingTable {
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            form {
+                padding: 10px;
+            }
+
+            .store-list, #slip, #bookingTable {
+                padding: 10px;
+            }
+
+            input[type="text"], select, button {
+                font-size: 14px;
+            }
+        }
+    </style>
+    <!-- Include jsPDF library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <form id="medicineSearchForm">
+        <label for="parentName">Enter Your Patient's Name:</label>
+        <input type="text" id="parentName" name="parentName" placeholder=" name" required>
+
+        <label for="location">Enter Your Location:</label>
+        <input type="text" id="location" name="location" placeholder="city" required>
+
+        <label for="medicine">Enter Medicine Name:</label>
+        <input type="text" id="medicine" name="medicine" placeholder="Paracetamol" required>
+
+        <button type="submit">Search Stores</button>
+    </form>
+
+    <div id="storeResults" class="store-list" style="display: none;">
+        <h3>Stores Found:</h3>
+        <div id="stores"></div>
+    </div>
+
+    <div id="slip" class="store-list" style="display: none;">
+        <h3>Booking Slip</h3>
+        <p id="slipDetails"></p>
+        <button id="downloadSlip" onclick="downloadPDF()">Download Slip as PDF</button>
+    </div>
+
+    <table id="bookingTable" style="display: none;">
+        <thead>
+            <tr>
+                <th>Patient's Name</th>
+                <th>Medicine Name</th>
+                <th>Store Name</th>
+                <th>Total Amount Paid</th>
+            </tr>
+        </thead>
+        <tbody id="bookings"></tbody>
+    </table>
+
+    <script>
+        const bookingEntries = []; // Array to store all booking entries
+
+        const form = document.getElementById('medicineSearchForm');
+        const storeResults = document.getElementById('storeResults');
+        const storesDiv = document.getElementById('stores');
+        const slipDiv = document.getElementById('slip');
+        const slipDetails = document.getElementById('slipDetails');
+        const bookingTable = document.getElementById('bookingTable');
+        const bookingsBody = document.getElementById('bookings');
+
+        const mrp = 10; // Assume the MRP of the medicine is INR 10 per unit
+
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const parentName = document.getElementById('parentName').value;
+            const location = document.getElementById('location').value;
+            const medicine = document.getElementById('medicine').value;
+
+            const stores = [
+                { name: 'HealthCare Pharmacy', location: location, medicine: medicine, quantity: Math.floor(Math.random() * 11) + 10 },
+                { name: 'City Meds Store', location: location, medicine: medicine, quantity: Math.floor(Math.random() * 11) + 10 },
+                { name: 'Quick Pharmacy', location: location, medicine: medicine, quantity: Math.floor(Math.random() * 11) + 10 },
+                { name: 'LifeLine Store', location: location, medicine: medicine, quantity: Math.floor(Math.random() * 11) + 10 },
+                { name: 'Care Pharmacy', location: location, medicine: medicine, quantity: Math.floor(Math.random() * 11) + 10 },
+                { name: 'GoodHealth Meds', location: location, medicine: medicine, quantity: Math.floor(Math.random() * 11) + 10 },
+                { name: 'SaveMed Store', location: location, medicine: medicine, quantity: Math.floor(Math.random() * 11) + 10 },
+                { name: 'PharmaPlus', location: location, medicine: medicine, quantity: Math.floor(Math.random() * 11) + 10 },
+                { name: 'Medical Hub', location: location, medicine: medicine, quantity: Math.floor(Math.random() * 11) + 10 },
+                { name: 'Healthy Life Pharmacy', location: location, medicine: medicine, quantity: Math.floor(Math.random() * 11) + 10 }
+            ];
+
+            storesDiv.innerHTML = ''; // Clear previous results
+            stores.forEach(store => {
+                const storeItem = document.createElement('div');
+                storeItem.classList.add('store-item');
+                const storePrice = mrp; // Price per unit is assumed as 10 INR
+                storeItem.innerHTML = `
+                    <strong>${store.name}</strong> - ${store.location}<br>
+                    Medicine: ${store.medicine}<br>
+                    Quantity Available: ${store.quantity}<br>
+                    Price per Unit: INR ${storePrice}<br>
+                    Select Quantity: <input type="range" min="1" max="${store.quantity}" value="1" id="quantity_${store.name}" onchange="updatePrice('${store.name}', ${storePrice}, this.value)">
+                    <span id="quantityDisplay_${store.name}">1</span> Units<br>
+                    Total Price: INR <span id="price_${store.name}">${storePrice}</span><br>
+                    <button onclick="bookStore('${store.name}', '${store.location}', '${store.medicine}', '${parentName}', document.getElementById('quantity_${store.name}').value, ${storePrice})">Book Now</button>
+                `;
+                storesDiv.appendChild(storeItem);
+            });
+
+            storeResults.style.display = 'block';
+        });
+
+        function updatePrice(storeName, pricePerUnit, quantity) {
+            const totalPrice = pricePerUnit * quantity;
+            document.getElementById(`price_${storeName}`).innerText = totalPrice;
+            document.getElementById(`quantityDisplay_${storeName}`).innerText = quantity;
+        }
+
+        function bookStore(storeName, location, medicine, parentName, quantity, pricePerUnit) {
+            const totalPrice = pricePerUnit * quantity;
+            const payment = prompt(`Total amount is INR ${totalPrice}. Please enter payment amount in INR:`);
+            if (payment === null || payment === '' || parseInt(payment) < totalPrice) {
+                alert('Insufficient amount paid. Booking failed.');
+                return;
+            }
+
+            // Store booking information
+            const booking = {
+                parentName,
+                medicine,
+                storeName,
+                totalAmountPaid: totalPrice
+            };
+            bookingEntries.push(booking);
+
+            // Update slip and table
+            slipDetails.innerHTML = `Store: ${storeName}<br>Location: ${location}<br>Medicine: ${medicine}<br>Quantity: ${quantity}<br>Total Price: INR ${totalPrice}`;
+            slipDiv.style.display = 'block';
+
+            // Add to booking table
+            const bookingRow = document.createElement('tr');
+            bookingRow.innerHTML = `<td>${parentName}</td><td>${medicine}</td><td>${storeName}</td><td>INR ${totalPrice}</td>`;
+            bookingsBody.appendChild(bookingRow);
+            bookingTable.style.display = 'table';
+        }
+
+        function downloadPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Add the logo image (replace 'logoBase64' with your actual base64 string or URL)
+    const logoUrl = 'https://static.toiimg.com/thumb/msid-51767839,width-400,resizemode-4/51767839.jpg'; // URL to your logo image
+    const imgWidth = 40; // Adjust the width of the logo
+    const imgHeight = 20; // Adjust the height of the logo
+    const marginX = (doc.internal.pageSize.getWidth() - imgWidth) / 2; // Center the image
+
+    doc.addImage(logoUrl, 'PNG', marginX, 10, imgWidth, imgHeight);
+
+    // Add heading text below the logo
+    doc.setFontSize(20);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const title = 'HealthCare24';
+    const textWidth = doc.getTextWidth(title);
+    const xPosition = (pageWidth - textWidth) / 2;
+    doc.text(title, xPosition, imgHeight + 20); // Adjusted Y position after logo
+
+    // Add slip details below the heading
+    doc.setFontSize(12);
+    doc.text(slipDetails.innerText, 10, imgHeight + 40);
+
+    // Save the PDF
+    doc.save('booking-slip.pdf');
+}
+
+    </script>
+</body>
+</html>
